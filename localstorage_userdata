@@ -1,0 +1,117 @@
+```javascript
+/*JS本地存储*/
+var localData = {
+    isLocalStorage: window.localStorage ? true : false,
+    dataDom: null,
+    key_prefix: 'data-userdata-key', //存储 localData索引
+
+    initDom: function () { //初始化userData
+        if (!this.dataDom) {
+            try {
+                this.dataDom = document.createElement('INPUT');
+                this.dataDom.setAttribute("id", "userdata_id");
+                this.dataDom.type = "hidden";
+                this.dataDom.addBehavior("#default#userData");
+                document.body.appendChild(this.dataDom);
+            } catch (ex) {
+                alert('对不起，本系统暂不支持该版本的浏览器，请升级浏览器或者更换其他浏览器！');
+                return false;
+            }
+        }
+        return true;
+    },
+    set: function (key, value) {
+        if (this.isLocalStorage) {
+            window.localStorage.setItem(key, value);
+        } else {
+            if (this.initDom()) {
+                this.dataDom.load(key);
+                this.dataDom.setAttribute(key, value);
+                var expires = new Date();
+                expires.setDate(expires.getDate() + 30);
+                this.dataDom.expires = expires.toUTCString();
+                this.dataDom.save(key);
+                this.mark(key, false);
+            }
+        }
+    },
+    get: function (key) {
+        if (this.isLocalStorage) {
+            return window.localStorage.getItem(key);
+        } else {
+            if (this.initDom()) {
+                this.dataDom.load(key);
+                return this.dataDom.getAttribute(key);
+            }
+        }
+    },
+    mark: function (key, isRemove) {
+        this.dataDom.load(this.key_prefix);
+        var temp = this.dataDom.getAttribute(this.key_prefix) || '';
+        var reg = RegExp('\\b' + key + '\\b,?', 'i');
+        var hasKey = reg.test(temp) ? 1 : 0;
+
+        temp = isRemove ? temp.replace(reg, '') : hasKey ? temp : temp === '' ? key : temp.split(',').concat(key).join(',');
+
+        this.dataDom.setAttribute(this.key_prefix, temp);
+        this.dataDom.save(this.key_prefix);
+    },
+    remove: function (key) {
+        if (this.isLocalStorage) {
+            localStorage.removeItem(key);
+        } else {
+            if (this.initDom()) {
+                this.dataDom.load(key);
+                this.dataDom.removeAttribute(key);
+                this.dataDom.save(key);
+                this.mark(key, true);
+            }
+        }
+    },
+    clear: function () {
+        if (this.isLocalStorage) {
+            localStorage.clear();
+        } else {
+            if (this.initDom()) {
+                this.dataDom.load(this.key_prefix);
+                var attrs = this.dataDom.getAttribute(this.key_prefix);
+                if (attrs) {
+                    attrs = attrs.split(','), len = attrs.length;
+                    for (var i = 0; i < len; i++) {
+                        this.dataDom.removeAttribute(attrs[i]);
+                        this.dataDom.save(attrs[i]);
+                    }
+                    ;
+                    this.dataDom.setAttribute(this.key_prefix, '');
+                    this.dataDom.save(this.key_prefix);
+                }
+            }
+        }
+    },
+    getAllKeys: function () {
+        var keys_list = [];
+        if (this.isLocalStorage) {
+            for (var k_i = 0, len = localStorage.length; k_i < len; k_i++) {
+                var t_key = localStorage.key(k_i);
+                if (t_key) {
+                    keys_list.push(t_key);
+                }
+            }
+        } else {
+            if (this.initDom()) {
+                this.dataDom.load(this.key_prefix);
+
+                var attrs = this.dataDom.getAttribute(this.key_prefix).split(','),
+                    len = attrs.length;
+
+                for (var i = 0; i < len; i++) {
+                    keys_list.push(attrs[i]);
+                }
+                ;
+            }
+        }
+        return keys_list;
+    }
+}
+
+```
