@@ -1,4 +1,3 @@
-```javascript
 /*JS本地存储*/
 var localData = {
     isLocalStorage: window.localStorage ? true : false,
@@ -113,5 +112,3 @@ var localData = {
         return keys_list;
     }
 }
-
-```
