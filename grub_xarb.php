@@ -1,3 +1,10 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: yy
+ * Date: 15-9-23
+ * Time: 下午8:50
+ */
 ini_set('max_execution_time', '0');
 
 header('Content-Type:text/html;charset=utf-8');
