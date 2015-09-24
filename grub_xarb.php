@@ -8,7 +8,7 @@
 ini_set('max_execution_time', '0');
 
 header('Content-Type:text/html;charset=utf-8');
-$obj = new Grab('2015-09-01', '2015-09-24');
+$obj = new Grab('2015-08-19', '2015-08-19');
 $obj->run();
 
 
@@ -35,7 +35,7 @@ class Common{
      * @param $msg
      * @param $level
      */
-    protected function error($msg = '', $level){
+    protected function error($msg = '', $level = self::LEVER_ERROR){
         switch($level){
             case self::LEVER_WARNING:
                 $this->MSG($msg);
@@ -169,7 +169,7 @@ class HtmlAnalyze extends Common{
         list(, $content) = explode(self::TYPE_ID_MARK_START_INDEX, $content);
         list($content, ) = explode(self::TYPE_ID_MARK_END_INDEX, $content);
 
-        preg_match_all('#<a href=node_(.*?).htm class="black" id=pageLink>(.*?)</a>#is', $content, $type_list);
+        preg_match_all('#<a href=\.?/?node_(.*?).htm class="black" id=pageLink>(.*?)</a>#is', $content, $type_list);
 
         if(!$type_list || 0 === count($type_list[1]) || 0 === count($type_list[2])){
             $this->error($this->source_date.':获取版块栏目失败！');
@@ -196,6 +196,9 @@ class HtmlAnalyze extends Common{
 
         foreach($articles as $id=>$item){
             $articles[$id]['sub_title'] = $item['title'] == $item['sub_title'] ? '' : $item['sub_title'];
+            $articles[$id]['type_name'] = isset($this->type_list[$type_index]) ? $this->type_list[$type_index] : '';
+            $articles[$id]['create_date'] = $this->source_date;
+            $articles[$id]['rel_article_id'] = $id;
         }
         $this->insertArticles($articles);
     }
@@ -293,8 +296,8 @@ class HtmlAnalyze extends Common{
         $content = str_replace(array('<P>','</P>'), array('<p>', '</p>'), $content);
         $content = str_replace('src="../../../res', 'src="'.self::HOST.'/res', $content);
         $content = preg_replace('#\s#is', '', $content);
-        $content = str_replace('<imgsrc=', '<img src=', $content);
-        return $content;
+        $content = str_replace(array('<imgsrc=', '<p></p>'), array('<img src=', ''), $content);
+        return htmlspecialchars($content, ENT_QUOTES, 'UTF-8');
     }
 
     /*****
@@ -302,7 +305,9 @@ class HtmlAnalyze extends Common{
      * @param $articles
      */
     private function insertArticles($articles){
-        print_r($articles);
+        $db = new DB();
+        $affected_rows = $db->insertMultiRows($articles, DB::XARB_ARTICLE_TALBE);
+        $this->MSG('insert rows: '.$affected_rows);
     }
 
     /****
@@ -320,8 +325,9 @@ class HtmlAnalyze extends Common{
     }
 }
 
-class DB{
-    const DB_MARK_ARTICLE = 'article';
+class DB extends Common{
+    const DB_MARK_ARTICLE = '30qingnian';
+    const XARB_ARTICLE_TALBE = 'xarb_article';
 
     public function getDBConn($db_mark, $read = true){
         switch($db_mark){
@@ -339,7 +345,33 @@ class DB{
      */
     private function getDBConnObj($db_mark, $read){
         $conn = mysql_connect('localhost', 'root', 'root');
+        mysql_select_db($db_mark, $conn);
         return $conn;
+    }
+
+    public function insertMultiRows($data, $table_name){
+        $keys = implode(",", array_keys(current($data)));
+        $values = array();
+        foreach($data as $item){
+            $values[] = "('".implode("','", $item)."')";
+        }
+        $values = implode(',', $values);
+        $sql = "insert into {$table_name}({$keys}) values {$values}";
+        return $this->insert($sql);
+    }
+
+    public function insert($sql){
+        $db = $this->getDBConn(self::DB_MARK_ARTICLE);
+        $rs = mysql_query($sql, $db);
+        if(false === $rs){
+            $error_no = mysql_errno($db);
+            $error_str = mysql_error($db);
+            $this->error("mysql error no :{$error_no}, error msg: {$error_str}, sql:{$sql}");
+        }
+
+        $sleep_time = mt_rand(100, 2000);
+        usleep($sleep_time);
+        return mysql_affected_rows($db);
     }
 }
 
